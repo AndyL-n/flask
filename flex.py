@@ -23,7 +23,7 @@ def refresh_token(app):
     return None
 
 # 繁易获取监控设备
-def device_list(app):
+def flex_list(app):
     with app.app_context():  # 使用传入的 app 创建上下文
         # 请求的URL
         url = app.config['FBOX'] + '/api/client/box/grouped'
@@ -39,7 +39,7 @@ def device_list(app):
         # 检查响应状态码
         if response.status_code == 401:
             app.config['TOKEN'] = refresh_token(app)
-            return device_list()
+            return flex_list()
         else:
             return response
 
@@ -47,7 +47,7 @@ def device_list(app):
 
 
 # 繁易获取设备信息
-def device_info(app, box_no, names):
+def flex_info(app, box_no, fields):
     with app.app_context():  # 使用传入的 app 创建上下文
         # 请求的URL
         url = app.config['FBOX'] + '/api/v2/dmon/value/get?boxNo=' + str(box_no)
@@ -60,8 +60,8 @@ def device_info(app, box_no, names):
 
         # 请求体数据
         data = {
-            "names": names,
-            "groupnames": ['默认'] * len(names),
+            "names": fields,
+            "groupnames": ['默认'] * len(fields),
             "timeOut": None
         }
 
@@ -71,14 +71,14 @@ def device_info(app, box_no, names):
 
         if response.status_code == 401:
             app.config['TOKEN'] = refresh_token(app)
-            return device_info(app, box_no, names)
+            return flex_info(app, box_no, fields)
         elif response.status_code == 200:
            return response.json()
         else:
             return (f"请求失败，状态码: {response.status_code}")
 
 # 繁易修改设备信息
-def device_set(app, box_no, name, value):
+def flex_set(app, box_no, field, value):
     with app.app_context():  # 使用传入的 app 创建上下文
         # 请求的URL
         url = app.config['FBOX'] + '/api/v2/dmon/value?boxNo=' + str(box_no)
@@ -92,7 +92,7 @@ def device_set(app, box_no, name, value):
         # 请求体数据
         data = {
             "groupname": "默认",
-            "name": name,
+            "name": field,
             "type": 0,
             "value": str(value),
         }
@@ -102,7 +102,7 @@ def device_set(app, box_no, name, value):
         # 检查响应状态码
         if response.status_code == 401:
             app.config['TOKEN'] = refresh_token(app)
-            return device_set(app, box_no, name, value)
+            return flex_set(app, box_no, field, value)
         if response.status_code == 200:
            return ("修改成功")
 

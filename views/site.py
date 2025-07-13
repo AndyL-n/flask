@@ -6,14 +6,14 @@ import json
 from flask import Blueprint, request
 from models import db, Site, Union, Device
 from datetime import datetime
-from flex import device_list
+from flex import flex_list
 
 site = Blueprint('site', __name__)
 
 
 @site.route('/', methods=["GET"])
 def index():
-    response = device_list(current_app)
+    response = flex_list(current_app)
     print(response)
     # 检查响应状态码
     if response.status_code == 200:
