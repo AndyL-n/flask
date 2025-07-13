@@ -1,5 +1,6 @@
-from flask import Flask, g, jsonify, request
-from interval import refresh_token, scheduler, device_record
+from flask import Flask
+from flex import refresh_token
+from  interval import scheduler
 from db import db
 from flask_cors import CORS
 from views.device import device
@@ -25,37 +26,18 @@ def create_app():
     app.register_blueprint(union, url_prefix='/union')
 
     with app.app_context():
-        g.fbox = app.config['FBOX']
         # 获取token
-        g.token = refresh_token(app)
-        app.config['TOKEN'] = g.token
-        # 获取所有设备
-        device_record(app)
-
-    # @app.before_request
-    # def before_request():
-    #     g.fbox = app.config['FBOX']
-    #     # 传递app实例
-    #     g.token = refresh_token(app)
-    #     app.config['TOKEN'] = g.token
+        app.config['TOKEN'] = refresh_token(app)
 
 
     @app.route('/')
     def index():
-        print(g.token)
         return 'Welcome to JDF!'
 
     # 修改调度器任务，刷新token
     def refresh_token_with_app():
         with app.app_context():
-            g.token = refresh_token(app)
-            app.config['TOKEN'] = g.token
+            app.config['TOKEN'] = refresh_token(app)
     scheduler.add_job(refresh_token_with_app, 'interval', seconds=3600)
-
-    # # 修改调度器任务，传递app实例
-    def device_record_with_app():
-        with app.app_context():
-            device_record(app)
-    scheduler.add_job(device_record_with_app, 'interval', seconds=600)
 
     return app

@@ -3,19 +3,14 @@ import requests
 import json
 from flask import Blueprint, request
 from models import Device
+from flex import device_set, device_list
 
 device = Blueprint('device', __name__)
 
 @device.route('/<string:site_no>', methods=["GET"])
 def index(site_no):
-    # 配置请求头
-    headers = {
-        'Authorization': current_app.config['TOKEN'],
-        'Content-Type': 'application/json'
-    }
-
     # 发送GET请求到外部API
-    response = requests.get(g.fbox + '/api/client/box/grouped', headers=headers)
+    response = device_list(current_app)
     # 检查响应状态码
     if response.status_code == 200:
         data = response.json()
@@ -32,4 +27,9 @@ def index(site_no):
     else:
         # 如果请求失败，返回错误信息
         return jsonify({'error': 'Failed to fetch data', 'status_code': response.status_code}), response.status_code
+
+@device.route('/set/<string:box_no>', methods=["GET"])
+def set(box_no):
+    request_data = json.loads(request.get_data())
+    return jsonify(device_set(current_app, box_no, request_data["name"], request_data["value"]))
 

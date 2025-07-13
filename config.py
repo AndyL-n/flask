@@ -4,3 +4,4 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSON_AS_ASCII = 'JSON_AS_ASCII'
     FBOX = 'https://openapi.fbox360.com'
+    TOKEN = None

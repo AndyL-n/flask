@@ -1,26 +1,23 @@
-from flask import g, jsonify, current_app
+from http.client import responses
+
+from flask import jsonify, current_app
 import requests
 import json
 from flask import Blueprint, request
 from models import db, Site, Union
 from datetime import datetime
+from flex import device_list
 
 site = Blueprint('site', __name__)
 
 
 @site.route('/', methods=["GET"])
 def index():
-    # 配置请求头
-    headers = {
-        'Authorization': current_app.config['TOKEN'],
-        'Content-Type': 'application/json'
-    }
-    # 发送GET请求到外部API
-    response = requests.get(current_app.config['FBOX'] + '/api/client/box/grouped', headers=headers)
+    response = device_list(current_app)
     # 检查响应状态码
     if response.status_code == 200:
         # 如果请求成功，返回响应内容
-        data = response.json();
+        data = response.json()
         # 遍历字典的键值对
         for item in data:
             name = item['name']
