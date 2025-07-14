@@ -22,7 +22,7 @@ class Site(db.Model):
     end_time = db.Column(db.DateTime)
     start_time = db.Column(db.DateTime)
     info = db.Column(db.String(255))
-    delete = db.Column(db.Integer, default="1")
+    delete = db.Column(db.Integer, default='1')
     position_map = db.Column(BLOB)
 
     # 建立与device表的双向关系
@@ -66,7 +66,7 @@ class Device(db.Model):
     box_no = db.Column(db.String(255), nullable=False, unique=True)
     site_no = db.Column(db.String(255), db.ForeignKey('site.no'), nullable=False)
     site_name = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), default="1")
+    type = db.Column(db.String(255), default='1')
     connection_state = db.Column(db.SmallInteger)  # 对应tinyint(1)
     timestamp = db.Column(DateTime, default=lambda: datetime.now(tz))
     pm_10 = db.Column(Numeric(10, 3))

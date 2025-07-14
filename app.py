@@ -18,7 +18,7 @@ def create_app():
     import atexit
     atexit.register(lambda: scheduler.shutdown())
 
-    CORS(app, origins="http://localhost:8080")
+    CORS(app, origins='http://localhost:8080')
     app.register_blueprint(login, url_prefix='/login')
     app.register_blueprint(user, url_prefix='/user')
     app.register_blueprint(device, url_prefix='/device')

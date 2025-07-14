@@ -6,7 +6,7 @@ from flex import flex_list
 site = Blueprint('site', __name__)
 
 
-@site.route('/', methods=["GET"])
+@site.route('/', methods=['GET'])
 def index():
     response = flex_list(current_app)
     print(response)
@@ -30,8 +30,8 @@ def index():
                 db.session.add(new_site)
                 db.session.commit()
             flag = False
-            for boxReg in item["boxRegs"]:
-                new_device = Device(alias=boxReg["alias"], box_no=boxReg['box']['boxNo'],
+            for boxReg in item['boxRegs']:
+                new_device = Device(alias=boxReg['alias'], box_no=boxReg['box']['boxNo'],
                                     connection_state=boxReg['box']['connectionState'],
                                     site_no=item['id'], site_name=item['name'], timestamp=datetime.now())
                 if boxReg['box']['connectionState'] == 1:
@@ -54,17 +54,17 @@ def index():
         return jsonify({'error': 'Failed to fetch data', 'status_code': response.status_code}), response.status_code
 
 
-@site.route('/list', methods=["GET"])
+@site.route('/list', methods=['GET'])
 def site_list():
     sites = Site.query.filter_by(delete=0).all()
     if sites:
-        sites_dict_list = [{"name": item.name, "no": item.no} for item in sites]
+        sites_dict_list = [{'name': item.name, 'no': item.no} for item in sites]
         return jsonify(sites_dict_list)
     else:
-        return jsonify({"message": "Site is empty"}), 404
+        return jsonify({'message': 'Site is empty'}), 404
 
 
-# @site.route('/get/<string:no>', methods=["GET"])
+# @site.route('/get/<string:no>', methods=['GET'])
 def site_get(no):
     item = Site.query.filter(Site.no == no).first()
     if item:
@@ -75,14 +75,14 @@ def site_get(no):
         site_dict['start_time'] = dt.strftime('%Y-%m-%d')
         return jsonify(site_dict)
     else:
-        return jsonify({"message": "Site not found"}), 404
+        return jsonify({'message': 'Site not found'}), 404
 
 
-@site.route('/info/<string:no>', methods=["GET"])
+@site.route('/info/<string:no>', methods=['GET'])
 def info(site_no):
     item = Site.query.filter(Site.no == site_no).first()
     if not item:
-        return jsonify({"message": "Site not found"}), 404
+        return jsonify({'message': 'Site not found'}), 404
     site_dict = item.to_dict()
     dt = datetime.strptime(site_dict['end_time'], '%Y-%m-%d %H:%M:%S')
     site_dict['end_time'] = dt.strftime('%Y-%m-%d')
@@ -93,17 +93,17 @@ def info(site_no):
 
     union = Union.query.filter_by(type='监理单位', site_no=site_no).first()
     if not union:
-        return jsonify({"message": "supervision is empty"}), 404
+        return jsonify({'message': 'supervision is empty'}), 404
     supervision = union.to_dict()
 
     union = Union.query.filter_by(type='监管部门', site_no=site_no).first()
     if not union:
-        return jsonify({"message": "regulation is empty"}), 404
+        return jsonify({'message': 'regulation is empty'}), 404
     regulation = union.to_dict()
 
     unions = Union.query.filter(Union.type.notin_(['监管部门', '监理单位']), Union.site_no == site_no).all()
     if not unions:
-        return jsonify({"message": "unions is empty"}), 404
+        return jsonify({'message': 'unions is empty'}), 404
     unions_dict_list = [union.to_dict() for union in unions]
     return jsonify({'siteInfo': site_dict, 'supervision': supervision,
                     'regulation': regulation, 'companyList': unions_dict_list})

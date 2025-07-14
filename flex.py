@@ -3,7 +3,7 @@ import requests
 
 # 获取token
 def refresh_token(app):
-    print("Refreshing token...")
+    print('Refreshing token...')
     try:
         # 发送请求获取新的token
         response = requests.post(app.config['FBOX'] + '/idserver/core/connect/token', data={
@@ -15,12 +15,12 @@ def refresh_token(app):
 
         if response.status_code == 200:
             data = response.json()
-            token = data.get('token_type') + " " + data.get('access_token')
+            token = data.get('token_type') + ' ' + data.get('access_token')
             return token
         else:
-            return f"Failed to refresh token. Status code: {response.status_code}, Response: {response.text}"
+            return f'Failed to refresh token. Status code: {response.status_code}, Response: {response.text}'
     except requests.RequestException as e:
-        return f"An error occurred while refreshing token: {e}"
+        return f'An error occurred while refreshing token: {e}'
 
 
 # 繁易获取监控设备
@@ -59,9 +59,9 @@ def flex_info(app, box_no, fields):
 
         # 请求体数据
         data = {
-            "names": fields,
-            "groupnames": ['默认'] * len(fields),
-            "timeOut": None
+            'names': fields,
+            'groupnames': ['默认'] * len(fields),
+            'timeOut': None
         }
 
         # 发送POST请求
@@ -74,7 +74,7 @@ def flex_info(app, box_no, fields):
         elif response.status_code == 200:
             return response.json()
         else:
-            return f"请求失败，状态码: {response.status_code}"
+            return f'请求失败，状态码: {response.status_code}'
 
 
 # 繁易修改设备信息
@@ -91,10 +91,10 @@ def flex_set(app, box_no, field, value):
 
         # 请求体数据
         data = {
-            "groupname": "默认",
-            "name": field,
-            "type": 0,
-            "value": str(value),
+            'groupname': '默认',
+            'name': field,
+            'type': 0,
+            'value': str(value),
         }
 
         # 发送POST请求
@@ -104,7 +104,7 @@ def flex_set(app, box_no, field, value):
             app.config['TOKEN'] = refresh_token(app)
             return flex_set(app, box_no, field, value)
         if response.status_code == 200:
-            return "修改成功"
+            return '修改成功'
 
         else:
-            return f"请求失败，状态码: {response.status_code}"
+            return f'请求失败，状态码: {response.status_code}'
