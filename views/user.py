@@ -1,7 +1,9 @@
 from flask import jsonify
 from flask import Blueprint, request
 from models import db, User
+
 user = Blueprint('user', __name__)
+
 
 @user.route('/add', methods=['POST'])
 def add_user():
@@ -19,11 +21,9 @@ def add_user():
 
 @user.route('/get_user/<name>', methods=['GET'])
 def get_user(name):
-    user = User.query.filter_by(name=name).first()
-    print(user)
-    if user:
-        return jsonify({'username': user.name, 'passowrd': user.password})
+    item = User.query.filter_by(name=name).first()
+    print(item)
+    if item:
+        return jsonify({'username': item.name, 'password': item.password})
     else:
         return jsonify({'message': 'User not found!'}), 404
-
-

@@ -1,13 +1,8 @@
-from http.client import responses
-
 from flask import jsonify, current_app
-import requests
-import json
-from flask import Blueprint, request
+from flask import Blueprint
 from models import db, Site, Union, Device
 from datetime import datetime
 from flex import flex_list
-
 site = Blueprint('site', __name__)
 
 
@@ -23,31 +18,33 @@ def index():
         for item in data:
             name = item['name']
             no = item['id']
-            new_Site = Site(name=name, no=no)
+            new_site = Site(name=name, no=no)
             # 查询是否存在具有相同地名的工地
             existing_site = Site.query.filter_by(name=name).first()
             if existing_site:
                 # 如果用户已存在
-                if (existing_site.no != no):
+                if existing_site.no != no:
                     existing_site.no = no
                     db.session.commit()
             else:
-                db.session.add(new_Site)
+                db.session.add(new_site)
                 db.session.commit()
             flag = False
             for boxReg in item["boxRegs"]:
-                new_device = Device(alias=boxReg["alias"], box_no=boxReg['box']['boxNo'], connection_state=boxReg['box']['connectionState'],site_no=item['id'], site_name=item['name'],timestamp=datetime.now())
-                if(boxReg['box']['connectionState'] == 1):
+                new_device = Device(alias=boxReg["alias"], box_no=boxReg['box']['boxNo'],
+                                    connection_state=boxReg['box']['connectionState'],
+                                    site_no=item['id'], site_name=item['name'], timestamp=datetime.now())
+                if boxReg['box']['connectionState'] == 1:
                     flag = True
                 existing_device = Device.query.filter_by(box_no=boxReg['box']['boxNo']).first()
                 if existing_device:
-                    existing_device.connection_state=boxReg['box']['connectionState']
+                    existing_device.connection_state = boxReg['box']['connectionState']
                     db.session.commit()
                     continue
                 else:
                     db.session.add(new_device)
                     db.session.commit()
-            if(flag):
+            if flag:
                 existing_site.delete = 0
                 db.session.commit()
 
@@ -58,20 +55,20 @@ def index():
 
 
 @site.route('/list', methods=["GET"])
-def list():
+def site_list():
     sites = Site.query.filter_by(delete=0).all()
     if sites:
-        sites_dict_list = [{"name": site.name, "no": site.no} for site in sites]
+        sites_dict_list = [{"name": item.name, "no": item.no} for item in sites]
         return jsonify(sites_dict_list)
     else:
         return jsonify({"message": "Site is empty"}), 404
 
 
-@site.route('/get/<string:no>', methods=["GET"])
-def get(no):
-    site = Site.query.filter(Site.no == no).first()
-    if site:
-        site_dict = site.to_dict()
+# @site.route('/get/<string:no>', methods=["GET"])
+def site_get(no):
+    item = Site.query.filter(Site.no == no).first()
+    if item:
+        site_dict = item.to_dict()
         dt = datetime.strptime(site_dict['end_time'], '%Y-%m-%d %H:%M:%S')
         site_dict['end_time'] = dt.strftime('%Y-%m-%d')
         dt = datetime.strptime(site_dict['start_time'], '%Y-%m-%d %H:%M:%S')
@@ -82,28 +79,31 @@ def get(no):
 
 
 @site.route('/info/<string:no>', methods=["GET"])
-def info(no):
-    site = Site.query.filter(Site.no == no).first()
-    if not site:
+def info(site_no):
+    item = Site.query.filter(Site.no == site_no).first()
+    if not item:
         return jsonify({"message": "Site not found"}), 404
-    site_dict = site.to_dict()
+    site_dict = item.to_dict()
     dt = datetime.strptime(site_dict['end_time'], '%Y-%m-%d %H:%M:%S')
     site_dict['end_time'] = dt.strftime('%Y-%m-%d')
     dt = datetime.strptime(site_dict['start_time'], '%Y-%m-%d %H:%M:%S')
     site_dict['start_time'] = dt.strftime('%Y-%m-%d')
 
-    union = Union.query.filter_by(type='监理单位', site_no=no).first()
+    # index(site_no) 待补全
+
+    union = Union.query.filter_by(type='监理单位', site_no=site_no).first()
     if not union:
         return jsonify({"message": "supervision is empty"}), 404
     supervision = union.to_dict()
 
-    union = Union.query.filter_by(type='监管部门', site_no=no).first()
+    union = Union.query.filter_by(type='监管部门', site_no=site_no).first()
     if not union:
         return jsonify({"message": "regulation is empty"}), 404
     regulation = union.to_dict()
 
-    unions = Union.query.filter(Union.type.notin_(['监管部门', '监理单位']), Union.site_no == no).all()
+    unions = Union.query.filter(Union.type.notin_(['监管部门', '监理单位']), Union.site_no == site_no).all()
     if not unions:
         return jsonify({"message": "unions is empty"}), 404
     unions_dict_list = [union.to_dict() for union in unions]
-    return jsonify({'siteInfo': site_dict, 'supervision': supervision, 'regulation':regulation, 'companyList':unions_dict_list})
+    return jsonify({'siteInfo': site_dict, 'supervision': supervision,
+                    'regulation': regulation, 'companyList': unions_dict_list})

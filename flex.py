@@ -1,5 +1,6 @@
 import requests
 
+
 # 获取token
 def refresh_token(app):
     print("Refreshing token...")
@@ -17,10 +18,10 @@ def refresh_token(app):
             token = data.get('token_type') + " " + data.get('access_token')
             return token
         else:
-            return(f"Failed to refresh token. Status code: {response.status_code}, Response: {response.text}")
+            return f"Failed to refresh token. Status code: {response.status_code}, Response: {response.text}"
     except requests.RequestException as e:
-        return(f"An error occurred while refreshing token: {e}")
-    return None
+        return f"An error occurred while refreshing token: {e}"
+
 
 # 繁易获取监控设备
 def flex_list(app):
@@ -39,11 +40,9 @@ def flex_list(app):
         # 检查响应状态码
         if response.status_code == 401:
             app.config['TOKEN'] = refresh_token(app)
-            return flex_list()
+            return flex_list(app)
         else:
             return response
-
-
 
 
 # 繁易获取设备信息
@@ -73,9 +72,10 @@ def flex_info(app, box_no, fields):
             app.config['TOKEN'] = refresh_token(app)
             return flex_info(app, box_no, fields)
         elif response.status_code == 200:
-           return response.json()
+            return response.json()
         else:
-            return (f"请求失败，状态码: {response.status_code}")
+            return f"请求失败，状态码: {response.status_code}"
+
 
 # 繁易修改设备信息
 def flex_set(app, box_no, field, value):
@@ -104,7 +104,7 @@ def flex_set(app, box_no, field, value):
             app.config['TOKEN'] = refresh_token(app)
             return flex_set(app, box_no, field, value)
         if response.status_code == 200:
-           return ("修改成功")
+            return "修改成功"
 
         else:
-            return (f"请求失败，状态码: {response.status_code}")
+            return f"请求失败，状态码: {response.status_code}"
