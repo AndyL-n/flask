@@ -1,8 +1,16 @@
+from datetime import datetime
 from flask import jsonify, current_app
 import json
+import pytz
 from flask import Blueprint, request
 from tencent import tencent_info
 from flex import flex_set, flex_list
+from db import db
+from models import Record, Device
+# from flex import flex_info
+
+# 定义东八区时区
+tz = pytz.timezone('Asia/Shanghai')
 device = Blueprint('device', __name__)
 
 
@@ -30,12 +38,28 @@ def device_index(site_no):
 
 @device.route('/get/<string:box_no>', methods=['GET'])
 def device_get(box_no):
+    # return flex_info(current_app, box_no)
     data_dict = tencent_info(box_no)
     if data_dict is None or len(data_dict) == 0:
         return jsonify('设备未创建或是已删除')
     else:
+        existing_device = Device.query.filter_by(box_no=box_no).first()
+        existing_device.timestamp = datetime.now()
+        info = {'type': existing_device.type,
+                'site_no': existing_device.site_no,
+                'site_name': existing_device.site_name,
+                'connection_state': existing_device.connection_state,
+                'timestamp': existing_device.timestamp
+                }
+        db.session.commit()
         # 更新数据库
-        return {'box_no': box_no, 'data': {key: value['Value'] for key, value in data_dict.items()}}
+        new_device = Record(box_no=box_no)
+        clean_data = {key: value['Value'] for key, value in data_dict.items()}
+        # 批量更新属性
+        new_device.__dict__.update(clean_data)
+        db.session.add(new_device)
+        db.session.commit()
+        return {'box_no': box_no, 'info': info, 'data': {key: value['Value'] for key, value in data_dict.items()}}
 
 
 @device.route('/set/<string:box_no>', methods=['POST'])

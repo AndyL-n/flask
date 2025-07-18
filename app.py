@@ -1,5 +1,5 @@
 from flask import Flask
-from flex import refresh_token
+from flex import refresh_token, flex_list
 from interval import scheduler
 from db import db
 from flask_cors import CORS
@@ -8,6 +8,7 @@ from views.site import site
 from views.login import login
 from views.user import user
 from views.union import union
+from datetime import datetime
 
 
 def create_app():
@@ -58,4 +59,24 @@ def create_app():
                 db.session.commit()
 
     scheduler.add_job(record, 'interval', seconds=5)
+
+    # 刷新设备在线状态
+    def connection():
+        with app.app_context():
+            from models import Device
+            response = flex_list(app)
+            if response.status_code == 200:
+                # 如果请求成功，返回响应内容
+                data = response.json()
+                # 遍历字典的键值对
+                for item in data:
+                    for boxReg in item['boxRegs']:
+                        existing_device = Device.query.filter_by(box_no=boxReg['box']['boxNo']).first()
+                        if existing_device:
+                            existing_device.connection_state = boxReg['box']['connectionState']
+                            existing_device.timestamp = datetime.now()
+                            db.session.commit()
+
+    scheduler.add_job(connection, 'interval', seconds=5)
+
     return app
