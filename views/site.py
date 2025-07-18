@@ -64,7 +64,7 @@ def site_list():
         return jsonify({'message': 'Site is empty'}), 404
 
 
-# @site.route('/get/<string:no>', methods=['GET'])
+@site.route('/get/<string:no>', methods=['GET'])
 def site_get(no):
     item = Site.query.filter(Site.no == no).first()
     if item:
@@ -79,8 +79,8 @@ def site_get(no):
 
 
 @site.route('/info/<string:no>', methods=['GET'])
-def info(site_no):
-    item = Site.query.filter(Site.no == site_no).first()
+def info(no):
+    item = Site.query.filter(Site.no == no).first()
     if not item:
         return jsonify({'message': 'Site not found'}), 404
     site_dict = item.to_dict()
@@ -91,17 +91,17 @@ def info(site_no):
 
     # index(site_no) 待补全
 
-    union = Union.query.filter_by(type='监理单位', site_no=site_no).first()
+    union = Union.query.filter_by(type='监理单位', site_no=no).first()
     if not union:
         return jsonify({'message': 'supervision is empty'}), 404
     supervision = union.to_dict()
 
-    union = Union.query.filter_by(type='监管部门', site_no=site_no).first()
+    union = Union.query.filter_by(type='监管部门', site_no=no).first()
     if not union:
         return jsonify({'message': 'regulation is empty'}), 404
     regulation = union.to_dict()
 
-    unions = Union.query.filter(Union.type.notin_(['监管部门', '监理单位']), Union.site_no == site_no).all()
+    unions = Union.query.filter(Union.type.notin_(['监管部门', '监理单位']), Union.site_no == no).all()
     if not unions:
         return jsonify({'message': 'unions is empty'}), 404
     unions_dict_list = [union.to_dict() for union in unions]
