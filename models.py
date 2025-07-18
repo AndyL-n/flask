@@ -1,7 +1,6 @@
 from db import db  # 从db模块导入db实例
 from sqlalchemy import Numeric, DateTime, Boolean, BLOB
 from sqlalchemy.orm import relationship
-import datetime
 from datetime import datetime
 import pytz
 
