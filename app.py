@@ -43,19 +43,56 @@ def create_app():
 
     def record():
         with app.app_context():
-            from models import Device, DeviceRecord
+            from models import Device, DeviceRecord, SiteRecord
             from tencent import tencent_info
-            box_nos = db.session.query(Device.box_no).all()
-            box_no_list = [box_no[0] for box_no in box_nos]
-            for box_no in box_no_list:
+            results = db.session.query(Device.box_no, Device.site_no, ).all()
+            site_dict = {}
+            for box_no, site_no in results:
+                # 获取设备信息
                 data_dict = tencent_info(box_no)
-                if data_dict is None or len(data_dict) == 0:
+                if not data_dict:  # 过滤空数据（None或空字典）
                     continue
-                new_device = DeviceRecord(box_no=box_no)
-                clean_data = {key: value['Value'] for key, value in data_dict.items()}
-                # 批量更新属性
-                new_device.__dict__.update(clean_data)
-                db.session.add(new_device)
+
+                # 提取clean_data：保留所有键值对（确保value是有效格式）
+                clean_data = {}
+                for key, value in data_dict.items():
+                    if isinstance(value, dict) and 'Value' in value:
+                        clean_data[key] = value['Value']  # 保留所有字段
+                if not clean_data:  # 过滤无效的clean_data（无有效字段）
+                    continue
+
+                # 创建设备记录并存储所有clean_data
+                new_device_record = DeviceRecord(box_no=box_no)
+                new_device_record.__dict__.update(clean_data)  # 更新所有字段
+                db.session.add(new_device_record)
+                db.session.commit()  # 提交设备记录
+
+                # 初始化或更新站点统计（保留所有字段的累加）
+                if site_no not in site_dict:
+                    # 首次出现的站点：初始化count和所有字段
+                    site_dict[site_no] = {'count': 1}
+                    # 遍历clean_data的所有键，初始化累加值
+                    for key, value in clean_data.items():
+                        # 确保值是可累加的（如数字），非数字类型可根据需求处理
+                        if isinstance(value, (int, float)):
+                            site_dict[site_no][key] = value
+                else:
+                    # 已存在的站点：count+1，所有字段累加
+                    site_dict[site_no]['count'] += 1
+                    for key, value in clean_data.items():
+                        if isinstance(value, (int, float)) and key in site_dict[site_no]:
+                            site_dict[site_no][key] += value
+                        elif isinstance(value, (int, float)):
+                            # 处理新增字段（之前未出现过的key）
+                            site_dict[site_no][key] = value
+
+            # 保存站点统计记录（包含所有字段）
+            for site_no, site_data in site_dict.items():
+                # 从site_data中排除count（若SiteRecord不需要count字段）
+                record_data = {k: v / site_data['count'] for k, v in site_data.items() if k != 'count'}
+                # 动态创建SiteRecord，传入所有字段（需确保与模型字段匹配）
+                new_site_record = SiteRecord(site_no=site_no, **record_data)
+                db.session.add(new_site_record)
                 db.session.commit()
 
     scheduler.add_job(record, 'interval', seconds=5)
