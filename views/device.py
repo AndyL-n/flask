@@ -6,7 +6,7 @@ from flask import Blueprint, request
 from tencent import tencent_info
 from flex import flex_set, flex_list
 from db import db
-from models import Record, Device
+from models import DeviceRecord, Device
 # from flex import flex_info
 
 # 定义东八区时区

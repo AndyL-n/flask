@@ -43,7 +43,7 @@ def create_app():
 
     def record():
         with app.app_context():
-            from models import Device, Record
+            from models import Device, DeviceRecord
             from tencent import tencent_info
             box_nos = db.session.query(Device.box_no).all()
             box_no_list = [box_no[0] for box_no in box_nos]
@@ -51,7 +51,7 @@ def create_app():
                 data_dict = tencent_info(box_no)
                 if data_dict is None or len(data_dict) == 0:
                     continue
-                new_device = Record(box_no=box_no)
+                new_device = DeviceRecord(box_no=box_no)
                 clean_data = {key: value['Value'] for key, value in data_dict.items()}
                 # 批量更新属性
                 new_device.__dict__.update(clean_data)

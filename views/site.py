@@ -119,3 +119,8 @@ def info(no):
             device_type['360+p'] += 1
     return jsonify({'siteInfo': site_dict, 'supervision': supervision,
                     'regulation': regulation, 'companyList': unions_dict_list, 'deviceType': device_type})
+
+@site.route('/line/<string:no>', methods=['GET'])
+def line(no):
+    return jsonify({'siteInfo': site_dict, 'supervision': supervision,
+                    'regulation': regulation, 'companyList': unions_dict_list, 'deviceType': device_type})
