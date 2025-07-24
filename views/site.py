@@ -1,5 +1,7 @@
 from flask import jsonify, current_app
 from flask import Blueprint
+from mindspore.ops import switch
+
 from models import db, Site, Union, Device
 from datetime import datetime
 from flex import flex_list
@@ -105,5 +107,15 @@ def info(no):
     if not unions:
         return jsonify({'message': 'unions is empty'}), 404
     unions_dict_list = [union.to_dict() for union in unions]
+
+    devices = Device.query.filter(Device.site_no == no).all()
+    device_type = {'360': 0, 'p': 0, '360+p': 0}
+    for item in devices:
+        if item.type == '1':
+            device_type['360'] += 1
+        elif item.type == '2':
+            device_type['p'] += 1
+        else:
+            device_type['360+p'] += 1
     return jsonify({'siteInfo': site_dict, 'supervision': supervision,
-                    'regulation': regulation, 'companyList': unions_dict_list})
+                    'regulation': regulation, 'companyList': unions_dict_list, 'deviceType': device_type})
