@@ -27,7 +27,7 @@ class Site(db.Model):
     # 建立与device表的双向关系
     devices = relationship('Device', backref='site', lazy=True)
     unions = relationship('Union', backref='site', lazy=True)
-    site_records = relationship('DeviceRecord', backref='site', lazy=True)
+    site_records = relationship('SiteRecord', backref='site', lazy=True)
 
     def to_dict(self):
         return {
@@ -567,7 +567,7 @@ class SiteRecord(db.Model):
 
     def to_dict(self):
         return {
-            'box_no': self.box_no,
+            'site_no': self.site_no,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'pm2_5': self.pm2_5,
             'pm10': self.pm10,

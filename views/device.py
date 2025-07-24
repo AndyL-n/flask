@@ -53,7 +53,7 @@ def device_get(box_no):
                 }
         db.session.commit()
         # 更新数据库
-        new_device = Record(box_no=box_no)
+        new_device = DeviceRecord(box_no=box_no)
         clean_data = {key: value['Value'] for key, value in data_dict.items()}
         # 批量更新属性
         new_device.__dict__.update(clean_data)
