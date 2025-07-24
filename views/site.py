@@ -2,7 +2,7 @@ from flask import jsonify, current_app
 from flask import Blueprint
 from mindspore.ops import switch
 
-from models import db, Site, Union, Device
+from models import db, Site, Union, Device, SiteRecord
 from datetime import datetime
 from flex import flex_list
 site = Blueprint('site', __name__)
@@ -122,5 +122,24 @@ def info(no):
 
 @site.route('/line/<string:no>', methods=['GET'])
 def line(no):
-    return jsonify({'siteInfo': site_dict, 'supervision': supervision,
-                    'regulation': regulation, 'companyList': unions_dict_list, 'deviceType': device_type})
+    # 1. 修正查询条件：filter中需明确字段的筛选逻辑（原代码中SiteRecord.pm10无判断条件，会被视为True）
+    # 若要查询"pm10和pm2_5存在的记录"，可改为：
+    records = SiteRecord.query.filter(
+        SiteRecord.site_no == no,
+        SiteRecord.pm10.isnot(None),  # 排除pm10为空的记录
+        SiteRecord.pm2_5.isnot(None)  # 排除pm2_5为空的记录
+    ).all()
+
+    # 2. 遍历记录时，通过对象属性访问字段（而非解包）
+    # 收集所有记录的pm10和pm2_5，用于返回
+    pm10, pm2_5, timestamp = [], [], []
+    for record in records:
+        # 访问SiteRecord对象的pm10和pm2_5属性
+        pm10.append(record.pm10)
+        pm2_5.append(record.pm2_5)
+
+        formatted = record.timestamp.strftime("%Y/%m/%d %H:%M").replace("/0", "/").replace(" 0", " ")
+        timestamp.append(formatted)
+
+    # 3. 返回所有记录的数据（原代码只返回最后一条，此处修正为返回全部）
+    return jsonify({'pm10': pm10, 'pm2_5': pm2_5, 'timestamp': timestamp})
