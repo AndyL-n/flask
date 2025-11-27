@@ -2,6 +2,7 @@ from db import db  # 从db模块导入db实例（需确保db初始化正确：�
 from sqlalchemy import BLOB, DateTime, DECIMAL
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import json # 记得导入json
 import pytz
 
 # 定义东八区时区（用于时间字段默认值）
@@ -58,8 +59,9 @@ class Site(db.Model):
     id = db.Column(db.Integer, nullable=False, autoincrement=True, primary_key=True)
     no = db.Column(db.String(255), unique=True)  # Fbox组编号，允许为NULL（SQL中DEFAULT NULL）
     name = db.Column(db.String(255), nullable=False, unique=True)  # 场地名称，非空唯一
-    longitude = db.Column(db.String(255))  # 经度，允许为NULL
-    dimension = db.Column(db.String(255))  # 维度，允许为NULL
+    longitude = db.Column(db.DECIMAL(10, 6))  # 类型改为 DECIMAL
+    latitude = db.Column(db.DECIMAL(10, 6))  # 原 dimension 改名为 latitude
+    boundary = db.Column(db.Text)  # 新增字段
     address = db.Column(db.String(255))  # 地址，允许为NULL
     street = db.Column(db.String(255))  # 街道，允许为NULL
     type = db.Column(db.String(255))  # 场地类型，允许为NULL
@@ -67,7 +69,6 @@ class Site(db.Model):
     end_time = db.Column(DateTime)  # 结束时间，允许为NULL
     info = db.Column(db.String(255))  # 补充信息，允许为NULL
     delete = db.Column(db.Integer, default=0)  # 逻辑删除标记：0=未删除（默认），1=已删除
-    position_map = db.Column(BLOB)  # 位置地图（二进制数据），允许为NULL
 
     # 关联关系：与其他表的双向关联
     # 1. 关联Device表（一个场地对应多个设备）
@@ -83,20 +84,26 @@ class Site(db.Model):
 
     def to_dict(self):
         """将模型实例转为字典，便于接口返回JSON"""
+        boundary_list = []
+        if self.boundary:
+            try:
+                boundary_list = json.loads(self.boundary)
+            except:
+                boundary_list = []
         return {
             'id': self.id,
             'no': self.no,
             'name': self.name,
-            'longitude': self.longitude,
-            'dimension': self.dimension,
+            'longitude': float(self.longitude) if self.longitude is not None else None,
+            'latitude': float(self.latitude) if self.latitude is not None else None,
+            'boundary': boundary_list,
             'address': self.address,
             'street': self.street,
             'type': self.type,
             'start_time': self.start_time.isoformat() if self.start_time else None,  # 时间转ISO格式字符串
             'end_time': self.end_time.isoformat() if self.end_time else None,
             'info': self.info,
-            'delete': self.delete,
-            'position_map': self.position_map.hex() if self.position_map else None  # BLOB转16进制字符串（避免二进制传输问题）
+            'delete': self.delete
         }
 
 class SiteRecord(db.Model):

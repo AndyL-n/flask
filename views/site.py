@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 import json
-from models import  Site, Union, Device, SiteRecord, Permission
+from models import  Site, Union, Device, Permission
+from db import db # 引入 db 用于 with_entities 查询
 from datetime import datetime
 
 # 通用函数：兼容 T 分隔和空格分隔的时间字符串
@@ -20,62 +21,126 @@ def index():
     return "site"
 
 @site.route('/list', methods=['GET'])
+@site.route('/list', methods=['GET'])
 def site_list():
     try:
-        request_data = json.loads(request.get_data())
-        user_id = int(request_data['user_id'])
-        permission_records = Permission.query.filter_by(delete=0, user_id=user_id).all()
-        sites_dict_list = []
+        # 1. 获取参数 (兼容 get_json 和 get_data)
+        req_data = request.get_json(silent=True) or {}
+        if not req_data:
+            try:
+                # 备用方案：手动解析 Body
+                req_data = json.loads(request.get_data())
+            except:
+                pass  # 如果解析失败，req_data 依然是 {}，后面会校验
+
+        # 2. 校验 user_id
+        # 注意：这里是用 .get() 方法，避免直接 [ ] 访问导致 KeyError
+        user_id = req_data.get('user_id')
+
+        if not user_id:
+            return jsonify({'code': 400, 'msg': '缺少参数: user_id'}), 400
+
+        # 3. 数据库查询 (改回最稳妥的对象查询方式)
+        # 使用 Permission.query 直接获取模型对象列表，避免 Tuple/Row 属性访问差异
+        permission_records = Permission.query.filter_by(
+            user_id=int(user_id),
+            delete=0
+        ).all()
+
+        # 4. 构建返回列表
+        sites_list = []
         for record in permission_records:
-            sites_dict_list.append({
-                "site_id": record.site_id,  # 直接获取Permission表的site_id字段
-                "site_name": record.site_name  # 直接获取Permission表的site_name字段
+            # 确保 record 是对象，直接访问属性绝对安全
+            sites_list.append({
+                "site_id": record.site_id,
+                "site_name": record.site_name
             })
-        return jsonify(sites_dict_list)
+
+        return jsonify({
+            'code': 200,
+            'msg': 'success',
+            'data': sites_list
+        })
+
     except Exception as e:
-        return jsonify({"msg": str(e)})
+        # 打印详细错误到控制台，方便排查
+        print(f"Error in site_list: {e}")
+        return jsonify({'code': 500, 'msg': str(e)}), 500
 
 @site.route('/info', methods=['GET'])
 def site_info():
     try:
-        request_data = json.loads(request.get_data())
-        site_id = int(request_data['site_id'])
+        # 1. 获取参数 (保留你原有的逻辑: 解析 Body 中的 JSON)
+        # 客户端必须发送 Header: Content-Type: application/json
+        req_data = request.get_json(silent=True) or {}
+
+        # 兼容处理：如果 get_json 失败，尝试手动解析
+        if not req_data:
+            try:
+                req_data = json.loads(request.get_data())
+            except:
+                return jsonify({'code': 400, 'msg': '无效的 JSON 参数'}), 400
+
+        site_id = req_data.get('site_id')
+        if not site_id:
+            return jsonify({'code': 400, 'msg': '缺少参数: site_id'}), 400
+
+        # 转为 int 防止类型错误
+        site_id = int(site_id)
+
+        # 2. 查询站点基础信息
         item = Site.query.filter_by(id=site_id, delete=0).first()
         if not item:
-            return jsonify({'message': 'Site not found'}), 404
+            return jsonify({'code': 404, 'msg': 'Site not found'}), 404
+
+        # 使用模型最新的 to_dict (已包含 boundary 解析和时间转换)
         site_dict = item.to_dict()
-        site_dict['end_time'] = parse_time_to_date(site_dict['end_time'])
-        site_dict['start_time'] = parse_time_to_date(site_dict['start_time'])
 
-        union = Union.query.filter_by(type='监理单位', site_id=site_id, delete=0).first()
-        if not union:
-            return jsonify({'message': 'supervision is empty'}), 404
-        supervision = union.to_dict()
+        # 3. 查询关联单位 (优化：容错处理，找不到不报错，返回空字典)
+        # 监理单位
+        union_sup = Union.query.filter_by(type='监理单位', site_id=site_id, delete=0).first()
+        supervision = union_sup.to_dict() if union_sup else {}
 
-        union = Union.query.filter_by(type='监管部门', site_id=site_id, delete=0).first()
-        if not union:
-            return jsonify({'message': 'regulation is empty'}), 404
-        regulation = union.to_dict()
+        # 监管部门
+        union_reg = Union.query.filter_by(type='监管部门', site_id=site_id, delete=0).first()
+        regulation = union_reg.to_dict() if union_reg else {}
 
-        unions = Union.query.filter(Union.type.notin_(['监管部门', '监理单位']), Union.site_id == site_id, Union.delete == 0).all()
-        if not unions:
-            return jsonify({'message': 'unions is empty'}), 404
-        unions_dict_list = [union.to_dict() for union in unions]
+        # 其他单位列表
+        unions = Union.query.filter(
+            Union.type.notin_(['监管部门', '监理单位']),
+            Union.site_id == site_id,
+            Union.delete == 0
+        ).all()
+        unions_dict_list = [u.to_dict() for u in unions] if unions else []
 
-        devices = Device.query.filter(Device.site_id == site_id).all()
+        # 4. 统计设备类型
+        devices = Device.query.filter_by(site_id=site_id).all()
         device_type = {'360': 0, 'p': 0, '360+p': 0}
-        for item in devices:
-            if item.type == '1':
+
+        for d in devices:
+            d_type = str(d.type) if d.type else '0'
+            if d_type == '1':
                 device_type['360'] += 1
-            elif item.type == '2':
+            elif d_type == '2':
                 device_type['p'] += 1
             else:
                 device_type['360+p'] += 1
-        return jsonify({'siteInfo': site_dict, 'supervision': supervision,
-                        'regulation': regulation, 'companyList': unions_dict_list, 'deviceType': device_type})
+
+        # 5. 返回数据
+        return jsonify({
+            'code': 200,
+            'msg': 'success',
+            'data': {
+                'siteInfo': site_dict,
+                'supervision': supervision,
+                'regulation': regulation,
+                'companyList': unions_dict_list,
+                'deviceType': device_type
+            }
+        })
 
     except Exception as e:
-        return jsonify({"msg": str(e)})
+        return jsonify({"code": 500, "msg": str(e)}), 500
 
 # 查看所有GPS
 @site.route('/gps', methods=['GET'])
