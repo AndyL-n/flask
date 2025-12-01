@@ -137,7 +137,7 @@ CREATE TABLE `biz_task` (
   `exp_level` varchar(20) DEFAULT NULL COMMENT '预期成果级别（国/省/市）',
   `exp_effect` text COMMENT '预期效果',
   `exp_material_desc` text COMMENT '预期过程（佐证）材料清单(文本描述)',
-  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 1:数值(累加) 2:百分比(取大)',
+  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 0:对指标没有影响 1:数值(累加) 2:百分比(取大)',
   `target_value` decimal(20,4) DEFAULT 0.00 COMMENT '目标值',
   `current_value` decimal(20,4) DEFAULT 0.00 COMMENT '当前完成值(缓存统计)',
   `weight` decimal(5,2) DEFAULT 1.00 COMMENT '权重(冗余)',
@@ -184,7 +184,7 @@ CREATE TABLE `biz_material_submission` (
 
   -- 提交时填报的数值
   `reported_value` decimal(20,4) DEFAULT 0.00 COMMENT '本次填报完成值',
-  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 1:数值(累加) 2:百分比(取大)',
+  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 0:对指标没有影响 1:数值(累加) 2:百分比(取大)',
   `submit_by` bigint(20) NOT NULL COMMENT '提交人ID',
   `submit_dept_id` bigint(20) NOT NULL COMMENT '提交人部门ID',
   `manage_dept_id` bigint(20) NOT NULL COMMENT '归口部门ID',
@@ -254,7 +254,7 @@ CREATE TABLE `biz_performance` (
 
   `target_value` decimal(20,4) DEFAULT 0.00 COMMENT '总目标值',
   `current_value` decimal(20,4) DEFAULT 0.00 COMMENT '当前完成值(计算得出)',
-  `data_type` char(1) DEFAULT '1' COMMENT '1:数值 2:百分比',
+  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 0:对指标没有影响 1:数值(累加) 2:百分比(取大)',
 
   `dept_id` bigint(20) NOT NULL COMMENT '归口部门ID',
   `principal_id` bigint(20) NOT NULL COMMENT '归口负责人ID',
@@ -276,7 +276,7 @@ CREATE TABLE `biz_performance_year` (
   `year` int(4) NOT NULL,
   `target_value` decimal(20,4) DEFAULT 0.00,
   `actual_value` decimal(20,4) DEFAULT 0.00 COMMENT '年度实际完成',
-  `data_type` char(1) DEFAULT '1' COMMENT '1:数值 2:百分比',
+  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 0:对指标没有影响 1:数值(累加) 2:百分比(取大)',
   `is_delete` tinyint(1) DEFAULT 0 COMMENT '0:存在 1:删除',
   PRIMARY KEY (`year_id`),
   CONSTRAINT `fk_year_perf` FOREIGN KEY (`perf_id`) REFERENCES `biz_performance` (`perf_id`) ON DELETE CASCADE
@@ -290,7 +290,7 @@ CREATE TABLE `rel_task_performance` (
   `perf_id` bigint(20) NOT NULL,
   `weight` decimal(5,2) DEFAULT 1.00 COMMENT '贡献权重',
   `contribution_value` decimal(20,4) DEFAULT 0.00 COMMENT '该任务为KPI贡献的数值',
-  `data_type` char(1) DEFAULT '1' COMMENT '1:数值 2:百分比',
+  `data_type` char(1) DEFAULT '1' COMMENT '数据类型 0:对指标没有影响 1:数值(累加) 2:百分比(取大)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_tp` (`task_id`, `perf_id`),
   CONSTRAINT `fk_rel_task` FOREIGN KEY (`task_id`) REFERENCES `biz_task` (`task_id`) ON DELETE CASCADE,
