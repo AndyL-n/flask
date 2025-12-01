@@ -288,13 +288,15 @@ CREATE TABLE `rel_task_performance` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `task_id` bigint(20) NOT NULL,
   `perf_id` bigint(20) NOT NULL,
-  `weight` decimal(5,2) DEFAULT 1.00 COMMENT '贡献权重',
+  `year_id` bigint(20) NOT NULL,
+  `weight` decimal(5,2) DEFAULT 1.00 ,
   `contribution_value` decimal(20,4) DEFAULT 0.00 COMMENT '该任务为KPI贡献的数值',
   `data_type` char(1) DEFAULT '1' COMMENT '数据类型 0:对指标没有影响 1:数值(累加) 2:百分比(取大)',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_tp` (`task_id`, `perf_id`),
+  UNIQUE KEY `uk_tp` (`task_id`, `perf_id`, `year_id`),
   CONSTRAINT `fk_rel_task` FOREIGN KEY (`task_id`) REFERENCES `biz_task` (`task_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_rel_perf` FOREIGN KEY (`perf_id`) REFERENCES `biz_performance` (`perf_id`) ON DELETE CASCADE
+  CONSTRAINT `fk_rel_perf` FOREIGN KEY (`perf_id`) REFERENCES `biz_performance` (`perf_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rel_year` FOREIGN KEY (`year_id`) REFERENCES `biz_performance_year` (`year_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务绩效关联表';
 
 
