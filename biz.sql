@@ -264,8 +264,8 @@ CREATE TABLE `biz_performance` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`perf_id`),
-  CONSTRAINT `fk_perf_dept` FOREIGN KEY (`dept_id`) REFERENCES `sys_dept` (`dept_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_perf_principal` FOREIGN KEY (`principal_id`) REFERENCES `sys_user` (`user_id`) ON DELETE SET NULL
+  CONSTRAINT `fk_perf_dept` FOREIGN KEY (`dept_id`) REFERENCES `sys_dept` (`dept_id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_perf_principal` FOREIGN KEY (`principal_id`) REFERENCES `sys_user` (`user_id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='绩效指标库';
 
 -- 4.2 绩效年度分解
