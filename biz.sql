@@ -32,6 +32,7 @@ CREATE TABLE `sys_user` (
   `nick_name` varchar(30) NOT NULL COMMENT '姓名',
   `email` varchar(50) DEFAULT '' COMMENT '邮箱',
   `password` varchar(100) DEFAULT '' COMMENT '密码',
+  `role` char(1) DEFAULT '0' COMMENT '角色 0:admin 1:user 2:leader',
   `status` char(1) DEFAULT '0' COMMENT '状态 0:正常 1:停用',
   `is_delete` tinyint(1) DEFAULT 0 COMMENT '0:存在 1:删除',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -65,18 +66,21 @@ CREATE TABLE `sys_file` (
 DROP TABLE IF EXISTS `sys_notice`;
 CREATE TABLE `sys_notice` (
   `notice_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '通知ID',
-  `user_id` bigint(20) NOT NULL COMMENT '接收人ID',
+  `from_user_id` bigint(20) DEFAULT NULL COMMENT '发起人ID',
+  `to_user_id` bigint(20) NOT NULL COMMENT '接收人ID',
   `type` char(1) DEFAULT '1' COMMENT '类型',
   `trigger_event` varchar(50) DEFAULT 'SYSTEM' COMMENT '触发事件',
   `title` varchar(100) NOT NULL COMMENT '标题',
   `content` TEXT NOT NULL COMMENT '内容',
+  `source_type` char(1) NOT NULL,
   `source_id` bigint(20) DEFAULT NULL COMMENT '关联业务ID',
   `is_read` char(1) DEFAULT '0' COMMENT '阅读状态 0:未读 1:已读',
   `is_delete` tinyint(1) DEFAULT 0 COMMENT '0:存在 1:删除',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`notice_id`),
-  KEY `idx_user_read` (`user_id`, `is_read`),
-  CONSTRAINT `fk_notice_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE CASCADE
+  KEY `idx_user_read` (`from_user_id`, `to_user_id`, `is_read`),
+  CONSTRAINT `fk_sup_from` FOREIGN KEY (`from_user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_sup_to` FOREIGN KEY (`to_user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知表';
 
 
@@ -155,21 +159,6 @@ CREATE TABLE `biz_task` (
   CONSTRAINT `fk_task_leader` FOREIGN KEY (`leader_id`) REFERENCES `sys_user` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务分解表';
 
--- 2.4 佐证材料清单
-DROP TABLE IF EXISTS `biz_task_material_req`;
-CREATE TABLE `biz_task_material_req` (
-  `req_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '清单ID',
-  `task_id` bigint(20) NOT NULL COMMENT '任务ID',
-  `req_code` varchar(64) DEFAULT NULL COMMENT '清单编号',
-  `req_name` varchar(255) NOT NULL COMMENT '材料名称',
-  `req_desc` text COMMENT '预期过程（佐证）材料清单(文本描述)',
-  `is_required` char(1) DEFAULT '1',
-  `is_delete` tinyint(1) DEFAULT 0 COMMENT '0:存在 1:删除',
-  PRIMARY KEY (`req_id`),
-  CONSTRAINT `fk_req_task` FOREIGN KEY (`task_id`) REFERENCES `biz_task` (`task_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='材料清单表';
-
-
 -- ==========================================================================
 -- 第三部分：审批流转与数据填报
 -- ==========================================================================
@@ -178,7 +167,7 @@ CREATE TABLE `biz_task_material_req` (
 DROP TABLE IF EXISTS `biz_material_submission`;
 CREATE TABLE `biz_material_submission` (
   `sub_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '提交ID',
-  `req_id` bigint(20) NOT NULL COMMENT '清单ID',
+#   `req_id` bigint(20) NOT NULL COMMENT '清单ID',
   `task_id` bigint(20) NOT NULL COMMENT '任务ID',
   `file_id` bigint(20) NOT NULL COMMENT '文件ID',
 
@@ -320,23 +309,5 @@ CREATE TABLE `biz_achievement` (
   PRIMARY KEY (`ach_id`),
   CONSTRAINT `fk_ach_user` FOREIGN KEY (`create_by`) REFERENCES `sys_user` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标志性成果表';
-
--- 5.2 督办/预警记录
-DROP TABLE IF EXISTS `biz_supervision`;
-CREATE TABLE `biz_supervision` (
-  `super_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '记录ID',
-  `target_type` char(1) NOT NULL,
-  `target_id` bigint(20) NOT NULL,
-  `type` char(1) NOT NULL,
-  `message` varchar(500) NOT NULL,
-  `from_user_id` bigint(20) DEFAULT NULL COMMENT '发起人ID',
-  `to_user_id` bigint(20) NOT NULL COMMENT '接收人ID',
-  `is_read` char(1) DEFAULT '0',
-  `is_delete` tinyint(1) DEFAULT 0 COMMENT '0:存在 1:删除',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`super_id`),
-  CONSTRAINT `fk_sup_from` FOREIGN KEY (`from_user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_sup_to` FOREIGN KEY (`to_user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='督办记录表';
 
 SET FOREIGN_KEY_CHECKS = 1;
