@@ -21,7 +21,6 @@ def index():
     return "site"
 
 @site.route('/list', methods=['GET'])
-@site.route('/list', methods=['GET'])
 def site_list():
     try:
         # 1. 获取参数 (兼容 get_json 和 get_data)
