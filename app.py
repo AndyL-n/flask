@@ -106,8 +106,8 @@ def create_app():
     scheduler.add_job(
         func=record_job,
         trigger='interval',
-        minutes=5,
-        # seconds=5,
+        # minutes=5,
+        seconds=2,
         id='record_data_job',
         replace_existing=True
     )

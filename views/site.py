@@ -11,7 +11,6 @@ def parse_time_to_date(time_str):
     dt = datetime.strptime(time_str_clean, '%Y-%m-%d %H:%M:%S')
     return dt.strftime('%Y-%m-%d')
 
-
 site = Blueprint('site', __name__)
 
 
