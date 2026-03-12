@@ -93,6 +93,11 @@ class TencentIoTHandler:
                     if 'Value' in value:
                         result[key] = value['Value']
 
+            # 运行
+            print(result)
+            if result.get('pump_status') == 1 and result.get('status') == 1:
+                result['status'] = 2
+
             return result
 
         except TencentCloudSDKException as err:

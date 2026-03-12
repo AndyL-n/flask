@@ -3,8 +3,8 @@ import json
 from models import Device, DeviceRecord
 from db import db
 from tencent import tencent_handler
-from datetime import datetime  # 1. 新增引入 datetime
-
+from datetime import datetime, timedelta
+from sqlalchemy import and_
 # 定义蓝图
 device = Blueprint('device', __name__)
 
@@ -55,13 +55,16 @@ def device_info():
                 if hasattr(device_obj, k):
                     setattr(device_obj, k, v)
             device_obj.timestamp = current_time
+            if real_time_data.get('status') == 1 or real_time_data.get('status') == 2:
+                device_obj.off_timestamp = current_time
 
             # B. 插入 DeviceRecord 表 (增加一条历史记录)
             new_record = DeviceRecord(device_name=device_name)
             for k, v in real_time_data.items():
                 if hasattr(new_record, k):
                     setattr(new_record, k, v)
-            new_record.timestamp = current_time
+
+
 
             # 添加到会话并提交
             db.session.add(new_record)
@@ -136,6 +139,87 @@ def device_record():
     except Exception as e:
         return jsonify({'code': 500, 'msg': str(e)}), 500
 
+
+@device.route('/status_record', methods=['GET'])
+def device_status_record():
+    try:
+        # --- 1. 参数解析 (保持兼容性) ---
+        device_name = None
+
+        # 优先 URL 参数
+        if request.args.get('device_name'):
+            device_name = request.args.get('device_name')
+
+        # 其次 JSON Body
+        if not device_name:
+            req_data = request.get_json(silent=True) or {}
+            # 兼容非标准JSON格式
+            if not req_data and request.get_data():
+                try:
+                    req_data = json.loads(request.get_data())
+                except:
+                    pass
+            if req_data:
+                device_name = req_data.get('device_name')
+
+        if not device_name:
+            return jsonify({'code': 400, 'msg': '缺少参数: device_name'}), 400
+
+
+        # ----------------------------------
+        # --- 2. 计算时间范围 ---
+        # 如果您的项目使用了时区变量 tz (如模型定义中的 datetime.now(tz))，
+        # 请确保这里也使用相同时区，例如: datetime.now(tz) - timedelta(days=3)
+        # start_time = datetime.now() - timedelta(days=3)
+
+        # --- 3. 数据库查询 ---
+        # 改用 .filter() 以支持 >= 操作符
+        # records = DeviceRecord.query.with_entities(DeviceRecord.status, DeviceRecord.timestamp) \
+        #     .filter(and_(
+        #     DeviceRecord.device_name == device_name,
+        #     DeviceRecord.timestamp >= start_time
+        # )) \
+        #     .order_by(DeviceRecord.timestamp.asc()) \
+        #     .all()
+
+
+        # --- 2. 数据库查询 (只查 status 和 timestamp) ---
+        # 必须按时间正序 (asc) 查找，才能模拟状态流转过程
+        # 使用 with_entities 优化性能，不查其他几十个字段
+        records = DeviceRecord.query.with_entities(DeviceRecord.status, DeviceRecord.timestamp) \
+            .filter_by(device_name=device_name) \
+            .order_by(DeviceRecord.timestamp.asc()) \
+            .all()
+
+        # --- 3. 提取状态变更点 ---
+        status_changes = []
+        last_status = None
+
+        for status, timestamp in records:
+            # 如果是第一条记录，或者当前状态与上一条不同
+            if last_status is None or status != last_status:
+                status_changes.append({
+                    'status': status,
+                    # 将时间对象转为字符串，格式可根据需求调整
+                    'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S') if timestamp else ""
+                })
+                # 更新状态缓存
+                last_status = status
+
+        # --- 4. 结果处理 ---
+        # 前端通常希望看到从近到远的记录，所以将结果倒序
+        status_changes.reverse()
+
+        return jsonify({
+            'code': 200,
+            'msg': 'success',
+            'count': len(status_changes),
+            'data': status_changes
+        })
+
+    except Exception as e:
+        # print(e) # 调试用
+        return jsonify({'code': 500, 'msg': '服务器内部错误'}), 500
 
 # ==============================================================================
 # 3. 修改设备配置信息

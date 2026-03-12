@@ -64,7 +64,10 @@ def create_app():
                         if hasattr(device, k):
                             setattr(device, k, v)
                     # 必须更新时间戳
-                    device.timestamp = datetime.now()
+                    timestamp = datetime.now()
+                    device.timestamp = timestamp
+                    if data.get('status') == 1 or data.get('status') == 2:
+                        device.off_timestamp = timestamp
 
                     # 3. 聚合站点数据 (内存中计算)
                     sid = device.site_id
@@ -106,8 +109,8 @@ def create_app():
     scheduler.add_job(
         func=record_job,
         trigger='interval',
-        # minutes=5,
-        seconds=2,
+        minutes=5,
+        # seconds=60,
         id='record_data_job',
         replace_existing=True
     )

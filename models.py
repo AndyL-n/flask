@@ -81,6 +81,8 @@ class Site(db.Model):
     permissions = relationship('Permission', backref='site', lazy=True, foreign_keys='Permission.site_id')
     # 5. 关联User表（一个场地对应多个用户）
     users = relationship('User', backref='site', lazy=True, foreign_keys='User.site_id')
+    # 6. 关联Pole表（一个场地对应多个杆塔）
+    poles = relationship('Pole', backref='site', lazy=True, foreign_keys='Pole.site_id')
 
     def to_dict(self):
         """将模型实例转为字典，便于接口返回JSON"""
@@ -167,6 +169,7 @@ class Device(db.Model):
     latitude = db.Column(DECIMAL(10, 6))
     type = db.Column(db.String(255), nullable=False)  # 设备类型，非空
     status = db.Column(db.Integer, default=0)  # 在线状态：1=在线，0=离线（默认0）
+    off_timestamp = db.Column(DateTime, default=lambda: datetime.now(tz))  # 时间戳
     timestamp = db.Column(DateTime, default=lambda: datetime.now(tz), onupdate=lambda: datetime.now(tz))  # 时间戳（更新时自动刷新）
     delete = db.Column(db.Integer, default=0)  # 逻辑删除标记
     # 设备控制/状态字段
@@ -192,6 +195,8 @@ class Device(db.Model):
 
     # 关联关系：一个设备对应多个设备记录
     device_records = relationship('DeviceRecord', backref='device', lazy=True, foreign_keys='DeviceRecord.device_name')
+    # 关联关系：一个设备对应多个杆塔
+    poles = relationship('Pole', backref='device', lazy=True, foreign_keys='Pole.device_name')
 
     def to_dict(self):
         return {
@@ -202,8 +207,9 @@ class Device(db.Model):
             'site_name': self.site_name,
             'type': self.type,
             'status': '在线' if self.status == 1 else '离线',  # 状态转文字描述
-            'longitude': float(self.longitude) if self.longitude is not None else None,
-            'latitude': float(self.latitude) if self.latitude is not None else None,
+            # 'longitude': float(self.longitude) if self.longitude is not None else None,
+            # 'latitude': float(self.latitude) if self.latitude is not None else None,
+            'off_timestamp': self.off_timestamp.isoformat() if self.off_timestamp else None,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'delete': self.delete,
             # 设备控制/状态字段
@@ -286,4 +292,29 @@ class DeviceRecord(db.Model):
             'water_in_status_100': self.water_in_status_100,
             'pitch_angle': self.pitch_angle,
             'horizontal_angle': self.horizontal_angle
+        }
+
+
+class Pole(db.Model):
+    __tablename__ = 'pole'
+    pole_id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # 杆塔ID
+    pole_name = db.Column(db.String(255))  # 杆塔名称
+    longitude = db.Column(db.DECIMAL(10, 6))  # 经度
+    latitude = db.Column(db.DECIMAL(10, 6))  # 纬度
+    device_name = db.Column(db.String(255),
+                            db.ForeignKey('device.device_name', ondelete='SET NULL', onupdate='CASCADE'))
+    site_id = db.Column(db.Integer, db.ForeignKey('site.id', ondelete='SET NULL', onupdate='CASCADE'))
+    delete = db.Column(db.Integer, default=0, nullable=False)  # 软删除标记
+
+    def to_dict(self):
+        return {
+            'pole_id': self.pole_id,
+            'pole_name': self.pole_name,
+            'longitude': float(self.longitude) if self.longitude is not None else None,
+            'latitude': float(self.latitude) if self.latitude is not None else None,
+            'device_name': self.device_name,
+            'device_alias': self.device.alias if self.device else None,  # 通过反向关联获取设备别名
+            'site_id': self.site_id,
+            'site_name': self.site.name if self.site else None,  # 通过反向关联获取场地名称
+            'delete': self.delete
         }

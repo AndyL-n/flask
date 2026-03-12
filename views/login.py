@@ -67,7 +67,7 @@ def index():
             return jsonify({
                 'data': {
                     "name": user.name,
-                    "site_id": user.site_id,
+                    # "site_id": user.site_id,
                     # 如果有 token 生成逻辑通常放在这里
                     # "token": "xxxxx"
                 },
