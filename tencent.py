@@ -40,6 +40,7 @@ class TencentIoTHandler:
             # ==========================================
             httpProfile_exp = HttpProfile()
             httpProfile_exp.endpoint = "iotexplorer.tencentcloudapi.com"
+            httpProfile_exp.reqTimeout = 5  # 【关键修复】：强制设置5秒超时限制，防止假死无限等待
 
             clientProfile_exp = ClientProfile()
             clientProfile_exp.httpProfile = httpProfile_exp
@@ -51,12 +52,11 @@ class TencentIoTHandler:
             # ==========================================
             httpProfile_vid = HttpProfile()
             httpProfile_vid.endpoint = "iotvideo.tencentcloudapi.com"
+            httpProfile_vid.reqTimeout = 5  # 【关键修复】：同样设置控制接口的超时时间
 
             clientProfile_vid = ClientProfile()
             clientProfile_vid.httpProfile = httpProfile_vid
 
-            # 原代码中 region 为空字符串 ""，这里建议使用 "ap-guangzhou" 或与原代码保持一致
-            # 为了保险起见，这里设置为 "ap-guangzhou"，如果报错请尝试改回 ""
             self.video_client = iotvideo_client.IotvideoClient(self.cred, "ap-guangzhou", clientProfile_vid)
 
             logger.info("Tencent IoT Clients (Explorer & Video) Initialized.")
@@ -93,15 +93,14 @@ class TencentIoTHandler:
                     if 'Value' in value:
                         result[key] = value['Value']
 
-            # 运行
-            print(result)
+            # 判断水泵联动状态
             if result.get('pump_status') == 1 and result.get('status') == 1:
                 result['status'] = 2
 
             return result
 
         except TencentCloudSDKException as err:
-            logger.error(f"Get Data Error [{device_name}]: {err}")
+            logger.error(f"Get Data Error [{device_name}]: {err.message}") # 减少长串报错打印
             return None
         except Exception as e:
             logger.error(f"Unknown Error [{device_name}]: {e}")
