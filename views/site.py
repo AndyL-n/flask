@@ -177,7 +177,10 @@ def site_gps():
         if not site_id:
             return jsonify({'code': 400, 'msg': '缺少参数: site_id'}), 400
 
-        site_id = int(site_id)
+        try:
+            site_id = int(site_id)
+        except (TypeError, ValueError):
+            return jsonify({'code': 400, 'msg': 'site_id 必须是整数'}), 400
 
         # devices = Device.query.filter_by(site_id=site_id, delete=0).all()
         # for device in devices:
@@ -214,25 +217,30 @@ def site_gps():
         #         db.session.rollback()  # 出错回滚，防止数据库锁死
         #         return jsonify({'code': 500, 'msg': str(e)}), 500
 
-        poles = Pole.query.filter_by(site_id=site_id, delete=0).all()
+        rows = db.session.query(
+            Pole.pole_name,
+            Pole.longitude,
+            Pole.latitude,
+            Device.status,
+            Device.horizontal_angle,
+            Device.device_name,
+        ).outerjoin(
+            Device, Pole.device_name == Device.device_name
+        ).filter(
+            Pole.site_id == site_id,
+            Pole.delete == 0,
+        ).all()
+
         gps_list = []
-        for pole in poles:
-            # 2. 获取该 pole 关联的 device 对象
-            # 注意：如果 pole 没有绑定设备，related_device 可能是 None，需要做非空判断
-            related_device = pole.device
-
+        for row in rows:
             gps_data = {
-                "pole_name": pole.pole_name,
-                # 如果 alias 想用杆塔名就保持原样，如果想用设备别名则用 related_device.alias
-                "alias": pole.pole_name,
-
-                # 3. 安全获取 status 和 horizontal_angle
-                # 如果 related_device 存在则取值，不存在则给默认值 (如 0)
-                "status": related_device.status if related_device else 0,
-                "horizontal_angle": related_device.horizontal_angle if related_device else 0,
-                "device_name": related_device.device_name if related_device else None,
-                "longitude": float(pole.longitude) if pole.longitude is not None else None,
-                "latitude": float(pole.latitude) if pole.latitude is not None else None
+                "pole_name": row.pole_name,
+                "alias": row.pole_name,
+                "status": row.status if row.status is not None else 0,
+                "horizontal_angle": row.horizontal_angle if row.horizontal_angle is not None else 0,
+                "device_name": row.device_name,
+                "longitude": float(row.longitude) if row.longitude is not None else None,
+                "latitude": float(row.latitude) if row.latitude is not None else None
             }
             gps_list.append(gps_data)
 

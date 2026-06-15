@@ -100,7 +100,12 @@ class TencentIoTHandler:
             return result
 
         except TencentCloudSDKException as err:
-            logger.error(f"Get Data Error [{device_name}]: {err.message}") # 减少长串报错打印
+            message = getattr(err, 'message', str(err))
+            if '未查询到该设备' in message:
+                logger.info(f"Device [{device_name}] is not configured in Tencent Cloud, skipped.")
+                return None
+
+            logger.error(f"Get Data Error [{device_name}]: {message}") # 减少长串报错打印
             return None
         except Exception as e:
             logger.error(f"Unknown Error [{device_name}]: {e}")
