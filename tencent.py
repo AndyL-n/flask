@@ -121,28 +121,44 @@ class TencentIoTHandler:
             if not data_dict:
                 return False
 
-            # 注意：这里使用 video_models (iotvideo SDK)
-            req = video_models.ControlDeviceDataRequest()
+            req = explorer_models.ControlDeviceDataRequest()
 
             params = {
                 "ProductId": self.product_id,
                 "DeviceName": str(device_name),
-                "Data": json.dumps(data_dict)  # 必须序列化为字符串
+                "Data": json.dumps(data_dict),
+                "Method": "desired"
             }
             req.from_json_string(json.dumps(params))
 
-            # 使用 video_client 发送请求
-            resp = self.video_client.ControlDeviceData(req)
+            resp = self.explorer_client.ControlDeviceData(req)
 
-            logger.info(f"Control Device [{device_name}] Success. Resp: {resp.to_json_string()}")
-            return True
+            response_text = resp.to_json_string()
+            logger.info(f"Control Device [{device_name}] Success. Resp: {response_text}")
+
+            response_data = json.loads(response_text)
+            result_raw = response_data.get("Result")
+            result_data = json.loads(result_raw) if result_raw else {}
+            return {
+                "success": result_data.get("Sent") == 1,
+                "sent": result_data.get("Sent"),
+                "push_result": result_data.get("pushResult"),
+                "request_id": response_data.get("RequestId"),
+                "raw": response_data
+            }
 
         except TencentCloudSDKException as err:
             logger.error(f"Control Device Error [{device_name}]: {err}")
-            return False
+            return {
+                "success": False,
+                "message": str(err)
+            }
         except Exception as e:
             logger.error(f"Control Unknown Error [{device_name}]: {e}")
-            return False
+            return {
+                "success": False,
+                "message": str(e)
+            }
 
 
 # 单例模式

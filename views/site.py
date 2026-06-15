@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 import json
+import threading
 from models import Site, Device, Permission, Pole, DeviceRecord
 from db import db
 from datetime import datetime
@@ -12,6 +13,50 @@ def parse_time_to_date(time_str):
     return dt.strftime('%Y-%m-%d')
 
 site = Blueprint('site', __name__)
+_site_sync_lock = threading.Lock()
+_site_syncing = set()
+
+
+def apply_cloud_data_to_device(device_obj, cloud_data):
+    current_time = datetime.now()
+    changed = False
+    new_record = DeviceRecord(device_name=device_obj.device_name)
+
+    for key, value in cloud_data.items():
+        if hasattr(device_obj, key):
+            if getattr(device_obj, key) != value:
+                changed = True
+            setattr(device_obj, key, value)
+
+        if hasattr(new_record, key):
+            setattr(new_record, key, value)
+
+    device_obj.timestamp = current_time
+    if cloud_data.get('status') in [1, 2]:
+        device_obj.off_timestamp = current_time
+
+    if changed:
+        db.session.add(new_record)
+
+
+def sync_site_devices(app, site_id):
+    with app.app_context():
+        try:
+            devices = Device.query.filter_by(site_id=site_id, delete=0).all()
+            for device_obj in devices:
+                cloud_data = tencent_handler.get_device_data(device_obj.device_name)
+                if not cloud_data:
+                    continue
+
+                try:
+                    apply_cloud_data_to_device(device_obj, cloud_data)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Sync failed for {device_obj.device_name}: {e}")
+        finally:
+            with _site_sync_lock:
+                _site_syncing.discard(site_id)
 
 
 @site.route('/', methods=['GET'])
@@ -224,6 +269,20 @@ def site_gps():
             Device.status,
             Device.horizontal_angle,
             Device.device_name,
+            Device.manual_start,
+            Device.cycle_mode,
+            Device.timer_mode,
+            Device.linkage_mode,
+            Device.pm_mode,
+            Device.pump_status,
+            Device.water_in_status_30,
+            Device.water_in_status_60,
+            Device.water_in_status_100,
+            Device.pitch_angle,
+            Device.pm2_5,
+            Device.pm10,
+            Device.off_timestamp,
+            Device.timestamp,
         ).outerjoin(
             Device, Pole.device_name == Device.device_name
         ).filter(
@@ -240,7 +299,21 @@ def site_gps():
                 "horizontal_angle": row.horizontal_angle if row.horizontal_angle is not None else 0,
                 "device_name": row.device_name,
                 "longitude": float(row.longitude) if row.longitude is not None else None,
-                "latitude": float(row.latitude) if row.latitude is not None else None
+                "latitude": float(row.latitude) if row.latitude is not None else None,
+                "manual_start": row.manual_start if row.manual_start is not None else 0,
+                "cycle_mode": row.cycle_mode if row.cycle_mode is not None else 0,
+                "timer_mode": row.timer_mode if row.timer_mode is not None else 0,
+                "linkage_mode": row.linkage_mode if row.linkage_mode is not None else 0,
+                "pm_mode": row.pm_mode if row.pm_mode is not None else 0,
+                "pump_status": row.pump_status if row.pump_status is not None else 0,
+                "water_in_status_30": row.water_in_status_30 if row.water_in_status_30 is not None else 0,
+                "water_in_status_60": row.water_in_status_60 if row.water_in_status_60 is not None else 0,
+                "water_in_status_100": row.water_in_status_100 if row.water_in_status_100 is not None else 0,
+                "pitch_angle": row.pitch_angle if row.pitch_angle is not None else 0,
+                "pm2_5": row.pm2_5 if row.pm2_5 is not None else 0,
+                "pm10": row.pm10 if row.pm10 is not None else 0,
+                "off_timestamp": row.off_timestamp.isoformat() if row.off_timestamp else None,
+                "timestamp": row.timestamp.isoformat() if row.timestamp else None
             }
             gps_list.append(gps_data)
 
@@ -252,3 +325,31 @@ def site_gps():
 
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e)}), 500
+
+
+@site.route('/sync', methods=['POST'])
+def site_sync():
+    site_id = request.args.get('site_id')
+    if not site_id:
+        req_data = request.get_json(silent=True) or {}
+        site_id = req_data.get('site_id')
+
+    if not site_id:
+        return jsonify({'code': 400, 'msg': '缺少参数: site_id'}), 400
+
+    try:
+        site_id = int(site_id)
+    except (TypeError, ValueError):
+        return jsonify({'code': 400, 'msg': 'site_id 必须是整数'}), 400
+
+    with _site_sync_lock:
+        if site_id in _site_syncing:
+            return jsonify({'code': 202, 'msg': 'sync already running'})
+
+        _site_syncing.add(site_id)
+
+    app = current_app._get_current_object()
+    thread = threading.Thread(target=sync_site_devices, args=(app, site_id), daemon=True)
+    thread.start()
+
+    return jsonify({'code': 202, 'msg': 'sync started'})
