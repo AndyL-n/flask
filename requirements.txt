@@ -1,0 +1,13 @@
+APScheduler==3.11.1
+cryptography==49.0.0
+Flask==3.1.2
+flask-cors==6.0.1
+Flask-SQLAlchemy==3.1.1
+gunicorn==23.0.0
+PyMySQL==1.1.2
+python-dotenv==1.2.1
+pytz==2022.4
+SQLAlchemy==2.0.44
+tencentcloud-sdk-python-common==3.1.4
+tencentcloud-sdk-python-iotexplorer==3.1.4
+tencentcloud-sdk-python-iotvideo==3.0.1459

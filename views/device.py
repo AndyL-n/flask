@@ -4,7 +4,7 @@ import time
 from models import Device, DeviceRecord
 from db import db
 from tencent import tencent_handler
-from datetime import datetime
+from datetime import datetime, timedelta
 # 定义蓝图
 device = Blueprint('device', __name__)
 
@@ -55,9 +55,11 @@ def wait_for_cloud_data(device_name, expected_data, timeout=30, interval=0.8):
     return latest_data
 
 
-def get_status_changes(device_name, limit=120):
+def get_status_changes(device_name, limit=5000, days=30):
+    since_time = datetime.now() - timedelta(days=days)
     records = DeviceRecord.query.with_entities(DeviceRecord.status, DeviceRecord.timestamp) \
-        .filter_by(device_name=device_name) \
+        .filter(DeviceRecord.device_name == device_name) \
+        .filter(DeviceRecord.timestamp >= since_time) \
         .order_by(DeviceRecord.timestamp.desc()) \
         .limit(limit) \
         .all()
@@ -120,9 +122,14 @@ def device_snapshot():
             return jsonify({'code': 400, 'msg': '缺少参数: device_name'}), 400
 
         try:
-            limit = max(20, min(int(request.args.get('limit', 120)), 500))
+            limit = max(20, min(int(request.args.get('limit', 5000)), 20000))
         except (TypeError, ValueError):
-            limit = 120
+            limit = 5000
+
+        try:
+            days = max(1, min(int(request.args.get('days', 30)), 365))
+        except (TypeError, ValueError):
+            days = 30
 
         device_obj = Device.query.filter_by(device_name=device_name).first()
         if not device_obj:
@@ -133,7 +140,7 @@ def device_snapshot():
             'msg': 'success',
             'data': {
                 'device': device_snapshot_dict(device_obj),
-                'logs': get_status_changes(device_name, limit)
+                'logs': get_status_changes(device_name, limit, days)
             }
         })
 
@@ -278,13 +285,18 @@ def device_status_record():
             return jsonify({'code': 400, 'msg': '缺少参数: device_name'}), 400
 
 
-        limit = request.args.get('limit', 500)
+        limit = request.args.get('limit', 5000)
         try:
-            limit = max(20, min(int(limit), 2000))
+            limit = max(20, min(int(limit), 20000))
         except (TypeError, ValueError):
-            limit = 500
+            limit = 5000
 
-        status_changes = get_status_changes(device_name, limit)
+        try:
+            days = max(1, min(int(request.args.get('days', 30)), 365))
+        except (TypeError, ValueError):
+            days = 30
+
+        status_changes = get_status_changes(device_name, limit, days)
 
         return jsonify({
             'code': 200,
