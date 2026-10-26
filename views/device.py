@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 import json
 import time
-from models import Device, DeviceRecord
+from models import Device, DeviceRecord, Site
 from db import db
 from tencent import tencent_handler
 from datetime import datetime, timedelta
@@ -112,6 +112,68 @@ def device_snapshot_dict(device_obj):
         'pitch_angle': device_obj.pitch_angle,
         'horizontal_angle': device_obj.horizontal_angle
     }
+
+
+@device.route('/export_logs', methods=['GET'])
+def export_device_logs():
+    """导出场地或指定设备的全部历史状态变更，不受页面日志窗口限制。"""
+    site_id = request.args.get('site_id', type=int)
+    if site_id is None:
+        return jsonify({'code': 400, 'msg': '缺少或无效参数: site_id'}), 400
+
+    site_obj = db.session.get(Site, site_id)
+    if not site_obj or site_obj.delete != 0:
+        return jsonify({'code': 404, 'msg': '未找到该场地'}), 404
+
+    devices = Device.query.filter_by(site_id=site_id, delete=0)
+    device_name = request.args.get('device_name')
+    if device_name:
+        devices = devices.filter_by(device_name=device_name)
+        if devices.first() is None:
+            return jsonify({'code': 404, 'msg': '该场地未找到指定设备'}), 404
+
+    records = db.session.query(
+        DeviceRecord.device_name, Device.alias,
+        DeviceRecord.status, DeviceRecord.timestamp
+    ).join(Device, Device.device_name == DeviceRecord.device_name).filter(
+        DeviceRecord.delete == 0,
+        Device.site_id == site_id,
+        Device.delete == 0
+    )
+    if device_name:
+        records = records.filter(DeviceRecord.device_name == device_name)
+    records = records.order_by(
+        DeviceRecord.device_name, DeviceRecord.timestamp, DeviceRecord.id
+    ).yield_per(5000)
+
+    logs = []
+    last_device, last_status = None, None
+    for name, alias, status, timestamp in records:
+        if name == last_device and status == last_status:
+            continue
+        previous_status = last_status if name == last_device else None
+        if status == 3:
+            desc = '设备异常报警'
+        elif status == 0:
+            desc = '设备离线'
+        elif status == 2:
+            desc = '喷淋启动'
+        elif status == 1:
+            desc = ('喷淋停止 (待机)' if previous_status == 2 else
+                    '设备上线' if previous_status == 0 else '设备在线')
+        else:
+            desc = '未知状态'
+        logs.append({
+            'device_name': name,
+            'device_alias': alias or name,
+            'status': status,
+            'desc': desc,
+            'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S') if timestamp else ''
+        })
+        last_device, last_status = name, status
+
+    logs.sort(key=lambda log: (log['timestamp'], log['device_name']), reverse=True)
+    return jsonify({'code': 200, 'data': logs, 'site_name': site_obj.name, 'count': len(logs)})
 
 
 @device.route('/snapshot', methods=['GET'])
